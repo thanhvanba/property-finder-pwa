@@ -1,29 +1,29 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { AlertCircle } from 'lucide-react'
+} from "@/components/ui/select";
+import { AlertCircle } from "lucide-react";
 
 interface PropertySpecs {
-  area: number
-  price_min: number
-  price_max: number
-  frontage: number
-  roof_status?: 'yes' | 'partial' | 'no' | 'unknown'
+  area: number;
+  price_min: number;
+  price_max: number;
+  frontage: number;
+  roof_status?: "yes" | "partial" | "no" | "unknown";
 }
 
 interface StepSpecsProps {
-  onNext: (data: PropertySpecs) => void
-  initialData?: PropertySpecs
+  onNext: (data: PropertySpecs) => void;
+  initialData?: PropertySpecs;
 }
 
 export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
@@ -33,61 +33,58 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
       price_min: 0,
       price_max: 0,
       frontage: 0,
-      roof_status: 'unknown',
-    }
-  )
-  const [errors, setErrors] = useState<Record<string, string>>({})
+      roof_status: "unknown",
+    },
+  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
     if (!data.area || data.area < 50 || data.area > 5000) {
-      newErrors.area = 'Area must be between 50 and 5000 m²'
+      newErrors.area = "Area must be between 50 and 5000 m²";
     }
 
     if (data.price_min <= 0) {
-      newErrors.price_min = 'Minimum price must be greater than 0'
+      newErrors.price_min = "Minimum price must be greater than 0";
     }
 
     if (data.price_max <= 0) {
-      newErrors.price_max = 'Maximum price must be greater than 0'
+      newErrors.price_max = "Maximum price must be greater than 0";
     }
 
     if (data.price_max < data.price_min) {
-      newErrors.price_max = 'Maximum price must be greater than minimum price'
+      newErrors.price_max = "Maximum price must be greater than minimum price";
     }
 
     if (!data.frontage || data.frontage < 1 || data.frontage > 100) {
-      newErrors.frontage = 'Frontage must be between 1 and 100 meters'
+      newErrors.frontage = "Frontage must be between 1 and 100 meters";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleNext = () => {
     if (validateForm()) {
-      onNext(data)
+      onNext(data);
     }
-  }
+  };
 
-  const handleNumberChange = (
-    field: keyof PropertySpecs,
-    value: string
-  ) => {
-    const numValue = parseFloat(value) || 0
+  const handleNumberChange = (field: keyof PropertySpecs, value: string) => {
+    const numValue = parseFloat(value) || 0;
     setData((prev) => ({
       ...prev,
       [field]: numValue,
-    }))
+    }));
     if (errors[field]) {
       setErrors((prev) => {
-        const newErrors = { ...prev }
-        delete newErrors[field]
-        return newErrors
-      })
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -111,8 +108,8 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
               min="50"
               max="5000"
               step="0.1"
-              value={data.area || ''}
-              onChange={(e) => handleNumberChange('area', e.target.value)}
+              value={data.area || ""}
+              onChange={(e) => handleNumberChange("area", e.target.value)}
               className="mt-1"
             />
             {errors.area && (
@@ -134,8 +131,8 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
               min="1"
               max="100"
               step="0.1"
-              value={data.frontage || ''}
-              onChange={(e) => handleNumberChange('frontage', e.target.value)}
+              value={data.frontage || ""}
+              onChange={(e) => handleNumberChange("frontage", e.target.value)}
               className="mt-1"
             />
             {errors.frontage && (
@@ -158,8 +155,8 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
               placeholder="0"
               min="0"
               step="0.1"
-              value={data.price_min || ''}
-              onChange={(e) => handleNumberChange('price_min', e.target.value)}
+              value={data.price_min || ""}
+              onChange={(e) => handleNumberChange("price_min", e.target.value)}
               className="mt-1"
             />
             {errors.price_min && (
@@ -180,8 +177,8 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
               placeholder="0"
               min="0"
               step="0.1"
-              value={data.price_max || ''}
-              onChange={(e) => handleNumberChange('price_max', e.target.value)}
+              value={data.price_max || ""}
+              onChange={(e) => handleNumberChange("price_max", e.target.value)}
               className="mt-1"
             />
             {errors.price_max && (
@@ -198,12 +195,12 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
             Roof/Foundation Status
           </Label>
           <Select
-            value={data.roof_status || 'unknown'}
+            value={data.roof_status || "unknown"}
             onValueChange={(value) => {
               setData((prev) => ({
                 ...prev,
-                roof_status: value as 'yes' | 'partial' | 'no' | 'unknown',
-              }))
+                roof_status: value as "yes" | "partial" | "no" | "unknown",
+              }));
             }}
           >
             <SelectTrigger id="roof_status" className="mt-1">
@@ -223,5 +220,5 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
         Continue
       </Button>
     </div>
-  )
+  );
 }

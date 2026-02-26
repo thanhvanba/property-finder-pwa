@@ -1,32 +1,32 @@
-'use client'
+"use client";
 
-import React from "react"
+import React from "react";
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { AlertCircle, CheckCircle2, ImageIcon } from 'lucide-react'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { AlertCircle, CheckCircle2, ImageIcon } from "lucide-react";
 
 interface ReviewData {
-  name: string
-  phone: string
-  address: string
-  location: { lat: number; lng: number; accuracy: number }
-  area: number
-  price_min: number
-  price_max: number
-  frontage: number
-  photos: { front: Blob; general?: Blob; detail?: Blob }
-  roof_status?: string
-  legal_status?: string
-  notes?: string
+  name: string;
+  phone: string;
+  address: string;
+  location: { lat: number; lng: number; accuracy: number };
+  area: number;
+  price_min: number;
+  price_max: number;
+  frontage: number;
+  photos: { front: Blob; general?: Blob; detail?: Blob };
+  roof_status?: string;
+  legal_status?: string;
+  notes?: string;
 }
 
 interface StepReviewProps {
-  data: ReviewData
-  isSubmitting?: boolean
-  onSubmit: () => void
-  onEdit: (step: number) => void
+  data: ReviewData;
+  isSubmitting?: boolean;
+  onSubmit: () => void;
+  onEdit: (step: number) => void;
 }
 
 export function StepReview({
@@ -36,20 +36,20 @@ export function StepReview({
   onEdit,
 }: StepReviewProps) {
   const [photoCount] = useState(() => {
-    let count = 1
-    if (data.photos.general) count++
-    if (data.photos.detail) count++
-    return count
-  })
+    let count = 1;
+    if (data.photos.general) count++;
+    if (data.photos.detail) count++;
+    return count;
+  });
 
   const ReviewSection = ({
     title,
     step,
     children,
   }: {
-    title: string
-    step: number
-    children: React.ReactNode
+    title: string;
+    step: number;
+    children: React.ReactNode;
   }) => (
     <Card className="p-4">
       <div className="flex items-start justify-between mb-3">
@@ -65,7 +65,7 @@ export function StepReview({
       </div>
       <div className="text-sm space-y-2">{children}</div>
     </Card>
-  )
+  );
 
   return (
     <div className="space-y-4">
@@ -93,7 +93,9 @@ export function StepReview({
             </div>
             <div className="col-span-2">
               <p className="text-xs text-muted-foreground">Accuracy</p>
-              <p className="text-sm font-semibold">±{data.location.accuracy}m</p>
+              <p className="text-sm font-semibold">
+                ±{data.location.accuracy}m
+              </p>
             </div>
           </div>
         </ReviewSection>
@@ -116,7 +118,9 @@ export function StepReview({
         <ReviewSection title="Photos" step={3}>
           <div className="flex items-center gap-2">
             <ImageIcon className="w-4 h-4 text-primary" />
-            <p className="text-sm font-semibold">{photoCount} photo(s) captured</p>
+            <p className="text-sm font-semibold">
+              {photoCount} photo(s) captured
+            </p>
           </div>
           {data.photos.general && (
             <p className="text-xs text-muted-foreground">
@@ -171,7 +175,9 @@ export function StepReview({
 
       <div className="flex items-center gap-2 p-3 bg-primary/10 text-primary rounded-lg">
         <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-        <span className="text-sm font-medium">All required fields completed</span>
+        <span className="text-sm font-medium">
+          All required fields completed
+        </span>
       </div>
 
       <Button
@@ -186,9 +192,9 @@ export function StepReview({
             Submitting...
           </>
         ) : (
-          'Submit Property Check-in'
+          "Submit Property Check-in"
         )}
       </Button>
     </div>
-  )
+  );
 }

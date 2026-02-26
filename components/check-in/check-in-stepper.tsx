@@ -1,47 +1,48 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react'
-import { StepLocation } from './step-location'
-import { StepBasicInfo } from './step-basic-info'
-import { StepPhotos } from './step-photos'
-import { StepSpecs } from './step-specs'
-import { StepLegal } from './step-legal'
-import { StepReview } from './step-review'
-import { db, dbService, type Property, type PropertyDraft } from '@/lib/db'
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { StepLocation } from "./step-location";
+import { StepBasicInfo } from "./step-basic-info";
+import { StepPhotos } from "./step-photos";
+import { StepSpecs } from "./step-specs";
+import { StepLegal } from "./step-legal";
+import { StepReview } from "./step-review";
+import { db, dbService, type Property, type PropertyDraft } from "@/lib/db";
+import { syncPendingToServer } from "@/lib/sync";
 
 const STEPS = [
-  'GPS Location',
-  'Basic Info',
-  'Photos',
-  'Property Specs',
-  'Legal & Notes',
-  'Review',
-]
+  "GPS Location",
+  "Basic Info",
+  "Photos",
+  "Property Specs",
+  "Legal & Notes",
+  "Review",
+];
 
 interface FormData {
-  location?: { lat: number; lng: number; accuracy: number }
-  basicInfo?: { name: string; phone: string; address: string }
-  photos?: { front: Blob; general?: Blob; detail?: Blob }
+  location?: { lat: number; lng: number; accuracy: number };
+  basicInfo?: { name: string; phone: string; address: string };
+  photos?: { front: Blob; general?: Blob; detail?: Blob };
   specs?: {
-    area: number
-    price_min: number
-    price_max: number
-    frontage: number
-    roof_status?: string
-  }
-  legal?: { legal_status?: string; notes?: string }
+    area: number;
+    price_min: number;
+    price_max: number;
+    frontage: number;
+    roof_status?: string;
+  };
+  legal?: { legal_status?: string; notes?: string };
 }
 
 export function CheckInStepper() {
-  const [currentStep, setCurrentStep] = useState(0)
-  const [formData, setFormData] = useState<FormData>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [submitSuccess, setSubmitSuccess] = useState(false)
-  const [draftId] = useState(() => `draft-${Date.now()}`)
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState<FormData>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [draftId] = useState(() => `draft-${Date.now()}`);
 
   // Auto-save draft
   useEffect(() => {
@@ -55,21 +56,22 @@ export function CheckInStepper() {
             name: formData.basicInfo?.name,
             phone: formData.basicInfo?.phone,
             address: formData.basicInfo?.address,
+            photos: formData.photos,
             area: formData.specs?.area,
             price_min: formData.specs?.price_min,
             price_max: formData.specs?.price_max,
             frontage: formData.specs?.frontage,
           },
           updated_at: Date.now(),
-        })
+        });
       } catch (error) {
-        console.error('[CheckIn] Failed to save draft:', error)
+        console.error("[CheckIn] Failed to save draft:", error);
       }
-    }
+    };
 
-    const timer = setTimeout(saveDraft, 500)
-    return () => clearTimeout(timer)
-  }, [formData, currentStep, draftId])
+    const timer = setTimeout(saveDraft, 500);
+    return () => clearTimeout(timer);
+  }, [formData, currentStep, draftId]);
 
   const handleStepComplete = (data: any) => {
     const stepData = {
@@ -78,22 +80,22 @@ export function CheckInStepper() {
       photos: currentStep === 2 ? data : formData.photos,
       specs: currentStep === 3 ? data : formData.specs,
       legal: currentStep === 4 ? data : formData.legal,
-    }
+    };
 
-    setFormData(stepData)
+    setFormData(stepData);
 
     if (currentStep < STEPS.length - 1) {
-      setCurrentStep(currentStep + 1)
+      setCurrentStep(currentStep + 1);
     }
-  }
+  };
 
   const handleEdit = (step: number) => {
-    setCurrentStep(step)
-  }
+    setCurrentStep(step);
+  };
 
   const handleSubmit = async () => {
-    setIsSubmitting(true)
-    setSubmitError(null)
+    setIsSubmitting(true);
+    setSubmitError(null);
 
     try {
       const property: Property = {
@@ -108,41 +110,48 @@ export function CheckInStepper() {
         frontage: formData.specs!.frontage,
         photos: formData.photos!,
         roof_status: formData.specs!.roof_status as
-          | 'yes'
-          | 'partial'
-          | 'no'
-          | 'unknown',
+          | "yes"
+          | "partial"
+          | "no"
+          | "unknown",
         legal_status: formData.legal!.legal_status as
-          | 'unknown'
-          | 'verbal'
-          | 'pink'
-          | 'red',
+          | "unknown"
+          | "verbal"
+          | "pink"
+          | "red",
         notes: formData.legal!.notes,
-        pipeline_status: 'Submitted',
-        sync_status: 'pending',
+        pipeline_status: "Submitted",
+        sync_status: "pending",
         created_at: Date.now(),
         updated_at: Date.now(),
+      };
+
+      await dbService.submitProperty(property);
+
+      // Try to sync to server in the background (offline-first)
+      try {
+        await syncPendingToServer();
+      } catch {
+        // Ignore, will retry later from Pipeline screen
       }
+      await dbService.clearDraft(draftId);
 
-      await dbService.submitProperty(property)
-      await dbService.clearDraft(draftId)
-
-      setSubmitSuccess(true)
+      setSubmitSuccess(true);
 
       setTimeout(() => {
-        setCurrentStep(0)
-        setFormData({})
-        setSubmitSuccess(false)
-      }, 3000)
+        setCurrentStep(0);
+        setFormData({});
+        setSubmitSuccess(false);
+      }, 3000);
     } catch (error) {
       setSubmitError(
-        error instanceof Error ? error.message : 'Failed to submit property'
-      )
-      setIsSubmitting(false)
+        error instanceof Error ? error.message : "Failed to submit property",
+      );
+      setIsSubmitting(false);
     }
-  }
+  };
 
-  const progressPercent = ((currentStep + 1) / STEPS.length) * 100
+  const progressPercent = ((currentStep + 1) / STEPS.length) * 100;
 
   if (submitSuccess) {
     return (
@@ -159,7 +168,7 @@ export function CheckInStepper() {
           </p>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -170,7 +179,7 @@ export function CheckInStepper() {
             <button
               onClick={() => {
                 if (currentStep > 0) {
-                  setCurrentStep(currentStep - 1)
+                  setCurrentStep(currentStep - 1);
                 }
               }}
               disabled={currentStep === 0}
@@ -229,17 +238,11 @@ export function CheckInStepper() {
         )}
 
         {currentStep === 3 && (
-          <StepSpecs
-            onNext={handleStepComplete}
-            initialData={formData.specs}
-          />
+          <StepSpecs onNext={handleStepComplete} initialData={formData.specs} />
         )}
 
         {currentStep === 4 && (
-          <StepLegal
-            onNext={handleStepComplete}
-            initialData={formData.legal}
-          />
+          <StepLegal onNext={handleStepComplete} initialData={formData.legal} />
         )}
 
         {currentStep === 5 && (
@@ -265,5 +268,5 @@ export function CheckInStepper() {
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -1,38 +1,38 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 
 interface LegalInfo {
-  legal_status?: 'unknown' | 'verbal' | 'pink' | 'red'
-  notes?: string
+  legal_status?: "unknown" | "verbal" | "pink" | "red";
+  notes?: string;
 }
 
 interface StepLegalProps {
-  onNext: (data: LegalInfo) => void
-  initialData?: LegalInfo
+  onNext: (data: LegalInfo) => void;
+  initialData?: LegalInfo;
 }
 
 export function StepLegal({ onNext, initialData }: StepLegalProps) {
   const [data, setData] = useState<LegalInfo>(
     initialData || {
-      legal_status: 'unknown',
-      notes: '',
-    }
-  )
+      legal_status: "unknown",
+      notes: "",
+    },
+  );
 
   const handleNext = () => {
-    onNext(data)
-  }
+    onNext(data);
+  };
 
   return (
     <div className="space-y-4">
@@ -49,12 +49,12 @@ export function StepLegal({ onNext, initialData }: StepLegalProps) {
             Legal Status
           </Label>
           <Select
-            value={data.legal_status || 'unknown'}
+            value={data.legal_status || "unknown"}
             onValueChange={(value) => {
               setData((prev) => ({
                 ...prev,
-                legal_status: value as 'unknown' | 'verbal' | 'pink' | 'red',
-              }))
+                legal_status: value as "unknown" | "verbal" | "pink" | "red",
+              }));
             }}
           >
             <SelectTrigger id="legal_status" className="mt-1">
@@ -68,7 +68,8 @@ export function StepLegal({ onNext, initialData }: StepLegalProps) {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground mt-1.5">
-            Pink Book: Interim certificate | Red Book: Full ownership certificate
+            Pink Book: Interim certificate | Red Book: Full ownership
+            certificate
           </p>
         </div>
 
@@ -80,14 +81,14 @@ export function StepLegal({ onNext, initialData }: StepLegalProps) {
             id="notes"
             placeholder="Record any observations, conditions, or special notes about the property..."
             maxLength={1000}
-            value={data.notes || ''}
+            value={data.notes || ""}
             onChange={(e) => {
-              setData((prev) => ({ ...prev, notes: e.target.value }))
+              setData((prev) => ({ ...prev, notes: e.target.value }));
             }}
             className="mt-1 min-h-32 resize-none"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            {(data.notes || '').length}/1000
+            {(data.notes || "").length}/1000
           </p>
         </div>
       </div>
@@ -96,5 +97,5 @@ export function StepLegal({ onNext, initialData }: StepLegalProps) {
         Continue
       </Button>
     </div>
-  )
+  );
 }

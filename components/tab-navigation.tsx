@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Layers, Map, Settings, Wifi, WifiOff } from 'lucide-react'
+import { BarChart3, CheckCircle2, Layers, Map, Settings, Wifi, WifiOff } from 'lucide-react'
 import { useOnlineStatus } from '@/lib/hooks'
 
 interface TabNavigationProps {
@@ -10,10 +10,11 @@ interface TabNavigationProps {
 }
 
 const TABS = [
-  { id: 0, label: 'Check-in', icon: CheckCircle2 },
-  { id: 1, label: 'Pipeline', icon: Layers },
-  { id: 2, label: 'Map', icon: Map },
-  { id: 3, label: 'Settings', icon: Settings },
+  { id: 0, label: 'Dashboard', icon: BarChart3 },
+  { id: 1, label: 'Check-in', icon: CheckCircle2 },
+  { id: 2, label: 'Pipeline', icon: Layers },
+  { id: 3, label: 'Map', icon: Map },
+  { id: 4, label: 'Settings', icon: Settings },
 ]
 
 export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {

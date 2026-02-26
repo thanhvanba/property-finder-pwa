@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { CheckInStepper } from '@/components/check-in/check-in-stepper'
+import { DashboardScreen } from '@/components/screens/dashboard'
 import { PipelineScreen } from '@/components/screens/pipeline'
 import { MapScreen } from '@/components/screens/map'
 import { SettingsScreen } from '@/components/screens/settings'
@@ -12,10 +13,11 @@ export default function Page() {
 
   return (
     <main className="min-h-screen bg-background">
-      {activeTab === 0 && <CheckInStepper />}
-      {activeTab === 1 && <PipelineScreen />}
-      {activeTab === 2 && <MapScreen />}
-      {activeTab === 3 && <SettingsScreen />}
+      {activeTab === 0 && <DashboardScreen />}
+      {activeTab === 1 && <CheckInStepper />}
+      {activeTab === 2 && <PipelineScreen />}
+      {activeTab === 3 && <MapScreen />}
+      {activeTab === 4 && <SettingsScreen />}
 
       <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
     </main>
