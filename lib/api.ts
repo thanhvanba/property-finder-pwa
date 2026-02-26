@@ -22,6 +22,7 @@ export interface ApiProperty {
   area: number;
   price_min: number;
   price_max: number;
+  frontage: number;
   notes?: string;
   roof_status?: "yes" | "partial" | "no" | "unknown";
   legal_status?: "unknown" | "verbal" | "pink" | "red";
