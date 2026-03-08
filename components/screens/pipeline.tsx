@@ -30,25 +30,31 @@ export function PipelineScreen() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(
     null,
   );
-  const [photoPreviews, setPhotoPreviews] = useState<Record<string, string>>(
-    {},
-  );
+  const [photoPreviews, setPhotoPreviews] = useState<{
+    front?: string;
+    general?: string[];
+    detail?: string[];
+  }>({});
   const [editProperty, setEditProperty] = useState<Property | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  useEffect(() => {
-    const loadAndSync = async () => {
-      try {
-        await syncPendingToServer();
-        await syncFromServerToLocal();
-      } catch (err) {
-        // ignore network errors, still load local data
-      }
+  const safeRevokeObjectURL = (url?: string) => {
+    if (url && url.startsWith("blob:")) {
+      URL.revokeObjectURL(url);
+    }
+  };
 
+  useEffect(() => {
+    const load = async () => {
       try {
+        // Nếu online, sync từ server về local trước khi đọc từ IndexedDB
+        if (typeof window !== "undefined" && window.navigator.onLine) {
+          await syncFromServerToLocal();
+        }
+
         const props = await dbService.getProperties();
         setProperties(props.sort((a, b) => b.created_at - a.created_at));
       } catch (err) {
@@ -60,11 +66,7 @@ export function PipelineScreen() {
       }
     };
 
-    loadAndSync();
-
-    // Refresh & sync every 5 seconds
-    const interval = setInterval(loadAndSync, 5000);
-    return () => clearInterval(interval);
+    load();
   }, []);
 
   const handleManualSync = async () => {
@@ -77,9 +79,7 @@ export function PipelineScreen() {
       const props = await dbService.getProperties();
       setProperties(props.sort((a, b) => b.created_at - a.created_at));
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to sync pipelines",
-      );
+      setError(err instanceof Error ? err.message : "Failed to sync pipelines");
     } finally {
       setIsSyncing(false);
     }
@@ -91,32 +91,60 @@ export function PipelineScreen() {
       return;
     }
 
-    const previews: Record<string, string> = {};
+    const createdObjectUrls: string[] = [];
+    const previews: {
+      front?: string;
+      general?: string[];
+      detail?: string[];
+    } = {};
 
     if (selectedProperty.photos.front) {
-      previews.front =
-        typeof selectedProperty.photos.front === "string"
-          ? selectedProperty.photos.front
-          : URL.createObjectURL(selectedProperty.photos.front);
+      // front can be a URL string, a Blob/File, or metadata object from server
+      if (typeof selectedProperty.photos.front === "string") {
+        previews.front = selectedProperty.photos.front;
+      } else if (selectedProperty.photos.front instanceof Blob) {
+        const url = URL.createObjectURL(selectedProperty.photos.front);
+        previews.front = url;
+        createdObjectUrls.push(url);
+      } else {
+        // metadata object
+        previews.front = selectedProperty.photos.front.url;
+      }
     }
-    if (selectedProperty.photos.general) {
-      previews.general =
-        typeof selectedProperty.photos.general === "string"
-          ? selectedProperty.photos.general
-          : URL.createObjectURL(selectedProperty.photos.general);
+
+    if (selectedProperty.photos.general && selectedProperty.photos.general.length > 0) {
+      previews.general = selectedProperty.photos.general.map((item: any) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        if (item instanceof Blob) {
+          const url = URL.createObjectURL(item);
+          createdObjectUrls.push(url);
+          return url;
+        }
+        return item.url;
+      });
     }
-    if (selectedProperty.photos.detail) {
-      previews.detail =
-        typeof selectedProperty.photos.detail === "string"
-          ? selectedProperty.photos.detail
-          : URL.createObjectURL(selectedProperty.photos.detail);
+
+    if (selectedProperty.photos.detail && selectedProperty.photos.detail.length > 0) {
+      previews.detail = selectedProperty.photos.detail.map((item: any) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        if (item instanceof Blob) {
+          const url = URL.createObjectURL(item);
+          createdObjectUrls.push(url);
+          return url;
+        }
+        return item.url;
+      });
     }
 
     setPhotoPreviews(previews);
 
     // Cleanup URLs when component unmounts or property changes
     return () => {
-      Object.values(previews).forEach((url) => URL.revokeObjectURL(url));
+      createdObjectUrls.forEach((url) => safeRevokeObjectURL(url));
     };
   }, [selectedProperty]);
 
@@ -138,7 +166,9 @@ export function PipelineScreen() {
 
   const handleCloseDialog = () => {
     // Cleanup photo URLs
-    Object.values(photoPreviews).forEach((url) => URL.revokeObjectURL(url));
+    safeRevokeObjectURL(photoPreviews.front);
+    photoPreviews.general?.forEach((u) => safeRevokeObjectURL(u));
+    photoPreviews.detail?.forEach((u) => safeRevokeObjectURL(u));
     setPhotoPreviews({});
     setSelectedProperty(null);
     setEditProperty(null);
@@ -174,28 +204,98 @@ export function PipelineScreen() {
     files: FileList | null,
   ) => {
     if (!files || files.length === 0) return;
-    const file = files[0];
+    const fileArray = Array.from(files);
 
-    setEditProperty((prev) =>
-      prev
-        ? {
-            ...prev,
-            photos: {
-              ...prev.photos,
-              [type]: file,
-            },
-          }
-        : prev,
-    );
+    setEditProperty((prev) => {
+      if (!prev) return prev;
 
-    setPhotoPreviews((prev) => {
-      if (prev[type]) {
-        URL.revokeObjectURL(prev[type]);
+      if (type === "front") {
+        const frontFile = fileArray[0];
+        return {
+          ...prev,
+          photos: {
+            ...prev.photos,
+            front: frontFile,
+          },
+        };
       }
-      const url = URL.createObjectURL(file);
+
+      const existingArray =
+        prev.photos?.[type] && Array.isArray(prev.photos[type])
+          ? (prev.photos[type] as (Blob | string)[])
+          : [];
+
       return {
         ...prev,
-        [type]: url,
+        photos: {
+          ...prev.photos,
+          [type]: [...existingArray, ...fileArray],
+        },
+      };
+    });
+
+    setPhotoPreviews((prev) => {
+      const urls = fileArray.map((file) => URL.createObjectURL(file));
+
+      if (type === "front") {
+        safeRevokeObjectURL(prev.front);
+        return {
+          ...prev,
+          front: urls[0],
+        };
+      }
+
+      const currentArray = prev[type] ?? [];
+      return {
+        ...prev,
+        [type]: [...currentArray, ...urls],
+      };
+    });
+  };
+
+  const removePhotoAt = (type: "general" | "detail", index: number) => {
+    // remove from previews
+    setPhotoPreviews((prev) => {
+      const arr = prev[type] ?? [];
+      const url = arr[index];
+      safeRevokeObjectURL(url);
+      return {
+        ...prev,
+        [type]: arr.filter((_, i) => i !== index),
+      };
+    });
+
+    // remove from editProperty.photos
+    setEditProperty((prev) => {
+      if (!prev) return prev;
+      const current = prev.photos[type];
+      const arr = Array.isArray(current) ? current : current ? [current] : [];
+      return {
+        ...prev,
+        photos: {
+          ...prev.photos,
+          [type]: arr.filter((_, i) => i !== index),
+        },
+      };
+    });
+  };
+
+  const clearPhotos = (type: "general" | "detail") => {
+    setPhotoPreviews((prev) => {
+      prev[type]?.forEach((u) => safeRevokeObjectURL(u));
+      return {
+        ...prev,
+        [type]: [],
+      };
+    });
+    setEditProperty((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        photos: {
+          ...prev.photos,
+          [type]: [],
+        },
       };
     });
   };
@@ -247,6 +347,20 @@ export function PipelineScreen() {
             }
           : prev,
       );
+
+      // Nếu online, sau khi lưu local thì sync ngay lên server
+      if (typeof window !== "undefined" && window.navigator.onLine) {
+        try {
+          await syncPendingToServer();
+          await syncFromServerToLocal();
+          const synced = await dbService.getProperties();
+          setProperties(
+            synced.sort((a, b) => b.created_at - a.created_at),
+          );
+        } catch (err) {
+          console.error("[Pipeline] Failed to sync updated property:", err);
+        }
+      }
 
       setSaveSuccess(true);
     } catch (err) {
@@ -486,28 +600,38 @@ export function PipelineScreen() {
                       />
                     </div>
                   )}
-                  {photoPreviews.general && (
+                  {photoPreviews.general && photoPreviews.general.length > 0 && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-2">
                         General View
                       </p>
-                      <img
-                        src={photoPreviews.general}
-                        alt="General view"
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        {photoPreviews.general.map((src, idx) => (
+                          <img
+                            key={idx}
+                            src={src}
+                            alt={`General ${idx + 1}`}
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
-                  {photoPreviews.detail && (
+                  {photoPreviews.detail && photoPreviews.detail.length > 0 && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-2">
                         Detail View
                       </p>
-                      <img
-                        src={photoPreviews.detail}
-                        alt="Detail view"
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        {photoPreviews.detail.map((src, idx) => (
+                          <img
+                            key={idx}
+                            src={src}
+                            alt={`Detail ${idx + 1}`}
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -710,66 +834,206 @@ export function PipelineScreen() {
                   Photos
                 </h3>
                 <div className="grid grid-cols-1 gap-3">
-                  {photoPreviews.front && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Front View
-                      </p>
+                  {/* Front */}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Front View
+                    </p>
+                    {photoPreviews.front ? (
                       <img
                         src={photoPreviews.front}
                         alt="Front view"
                         className="w-full h-48 object-cover rounded-lg"
                       />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="mt-2 text-xs"
-                        onChange={(e) =>
-                          handlePhotoChange("front", e.target.files)
-                        }
-                      />
+                    ) : (
+                      <div className="w-full h-48 rounded-lg border border-dashed border-muted-foreground/30 flex items-center justify-center text-xs text-muted-foreground">
+                        No front photo. You can upload one below.
+                      </div>
+                    )}
+                    <input
+                      id={`pipeline-photo-${selectedProperty.id}-front-cam`}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) =>
+                        handlePhotoChange("front", e.target.files)
+                      }
+                    />
+                    <input
+                      id={`pipeline-photo-${selectedProperty.id}-front-lib`}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handlePhotoChange("front", e.target.files)
+                      }
+                    />
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label
+                        htmlFor={`pipeline-photo-${selectedProperty.id}-front-cam`}
+                        className="cursor-pointer text-xs inline-flex items-center justify-center rounded-md border px-3 py-2 hover:bg-muted"
+                      >
+                        Chụp ảnh
+                      </label>
+                      <label
+                        htmlFor={`pipeline-photo-${selectedProperty.id}-front-lib`}
+                        className="cursor-pointer text-xs inline-flex items-center justify-center rounded-md border px-3 py-2 hover:bg-muted"
+                      >
+                        Chọn từ thư viện
+                      </label>
                     </div>
-                  )}
-                  {photoPreviews.general && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        General View
-                      </p>
-                      <img
-                        src={photoPreviews.general}
-                        alt="General view"
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="mt-2 text-xs"
-                        onChange={(e) =>
-                          handlePhotoChange("general", e.target.files)
-                        }
-                      />
+                  </div>
+
+                  {/* General */}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      General View
+                    </p>
+                    {photoPreviews.general && photoPreviews.general.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {photoPreviews.general.map((src, idx) => (
+                          <div key={idx} className="relative">
+                            <img
+                              src={src}
+                              alt={`General ${idx + 1}`}
+                              className="w-full h-32 object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removePhotoAt("general", idx)}
+                              className="absolute top-2 right-2 p-1.5 bg-destructive text-white rounded-full hover:bg-destructive/90"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <div className="col-span-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => clearPhotos("general")}
+                            className="text-xs text-destructive hover:underline"
+                          >
+                            Clear all general photos
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full h-48 rounded-lg border border-dashed border-muted-foreground/30 flex items-center justify-center text-xs text-muted-foreground">
+                        No general photo. You can upload one below.
+                      </div>
+                    )}
+                    <input
+                      id={`pipeline-photo-${selectedProperty.id}-general-cam`}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) =>
+                        handlePhotoChange("general", e.target.files)
+                      }
+                    />
+                    <input
+                      id={`pipeline-photo-${selectedProperty.id}-general-lib`}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) =>
+                        handlePhotoChange("general", e.target.files)
+                      }
+                    />
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label
+                        htmlFor={`pipeline-photo-${selectedProperty.id}-general-cam`}
+                        className="cursor-pointer text-xs inline-flex items-center justify-center rounded-md border px-3 py-2 hover:bg-muted"
+                      >
+                        Chụp ảnh
+                      </label>
+                      <label
+                        htmlFor={`pipeline-photo-${selectedProperty.id}-general-lib`}
+                        className="cursor-pointer text-xs inline-flex items-center justify-center rounded-md border px-3 py-2 hover:bg-muted"
+                      >
+                        Chọn từ thư viện
+                      </label>
                     </div>
-                  )}
-                  {photoPreviews.detail && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Detail View
-                      </p>
-                      <img
-                        src={photoPreviews.detail}
-                        alt="Detail view"
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="mt-2 text-xs"
-                        onChange={(e) =>
-                          handlePhotoChange("detail", e.target.files)
-                        }
-                      />
+                  </div>
+
+                  {/* Detail */}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Detail View
+                    </p>
+                    {photoPreviews.detail && photoPreviews.detail.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {photoPreviews.detail.map((src, idx) => (
+                          <div key={idx} className="relative">
+                            <img
+                              src={src}
+                              alt={`Detail ${idx + 1}`}
+                              className="w-full h-32 object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removePhotoAt("detail", idx)}
+                              className="absolute top-2 right-2 p-1.5 bg-destructive text-white rounded-full hover:bg-destructive/90"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <div className="col-span-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => clearPhotos("detail")}
+                            className="text-xs text-destructive hover:underline"
+                          >
+                            Clear all detail photos
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full h-48 rounded-lg border border-dashed border-muted-foreground/30 flex items-center justify-center text-xs text-muted-foreground">
+                        No detail photo. You can upload one below.
+                      </div>
+                    )}
+                    <input
+                      id={`pipeline-photo-${selectedProperty.id}-detail-cam`}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) =>
+                        handlePhotoChange("detail", e.target.files)
+                      }
+                    />
+                    <input
+                      id={`pipeline-photo-${selectedProperty.id}-detail-lib`}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) =>
+                        handlePhotoChange("detail", e.target.files)
+                      }
+                    />
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label
+                        htmlFor={`pipeline-photo-${selectedProperty.id}-detail-cam`}
+                        className="cursor-pointer text-xs inline-flex items-center justify-center rounded-md border px-3 py-2 hover:bg-muted"
+                      >
+                        Chụp ảnh
+                      </label>
+                      <label
+                        htmlFor={`pipeline-photo-${selectedProperty.id}-detail-lib`}
+                        className="cursor-pointer text-xs inline-flex items-center justify-center rounded-md border px-3 py-2 hover:bg-muted"
+                      >
+                        Chọn từ thư viện
+                      </label>
                     </div>
-                  )}
+                  </div>
                 </div>
               </Card>
 

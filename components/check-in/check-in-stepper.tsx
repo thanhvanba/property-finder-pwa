@@ -25,15 +25,18 @@ const STEPS = [
 interface FormData {
   location?: { lat: number; lng: number; accuracy: number };
   basicInfo?: { name: string; phone: string; address: string };
-  photos?: { front: Blob; general?: Blob; detail?: Blob };
+  photos?: { front: Blob; general?: Blob[]; detail?: Blob[] };
   specs?: {
     area: number;
     price_min: number;
     price_max: number;
     frontage: number;
-    roof_status?: string;
+    roof_status?: "yes" | "partial" | "no" | "unknown";
   };
-  legal?: { legal_status?: string; notes?: string };
+  legal?: {
+    legal_status?: "unknown" | "verbal" | "pink" | "red";
+    notes?: string;
+  };
 }
 
 export function CheckInStepper() {
@@ -128,13 +131,16 @@ export function CheckInStepper() {
 
       await dbService.submitProperty(property);
 
-      // Try to sync to server in the background (offline-first)
-      try {
-        await syncPendingToServer();
-      } catch {
-        // Ignore, will retry later from Pipeline screen
-      }
       await dbService.clearDraft(draftId);
+
+      // Nếu đang online, đẩy dữ liệu vừa submit lên server luôn
+      if (typeof window !== "undefined" && window.navigator.onLine) {
+        try {
+          await syncPendingToServer();
+        } catch (error) {
+          console.error("[CheckIn] Failed to sync property online:", error);
+        }
+      }
 
       setSubmitSuccess(true);
 
@@ -233,7 +239,15 @@ export function CheckInStepper() {
         {currentStep === 2 && (
           <StepPhotos
             onNext={handleStepComplete}
-            initialData={formData.photos}
+            initialData={
+              formData.photos
+                ? {
+                    front: formData.photos.front,
+                    general: formData.photos.general || [],
+                    detail: formData.photos.detail || [],
+                  }
+                : undefined
+            }
           />
         )}
 
@@ -256,7 +270,11 @@ export function CheckInStepper() {
               price_min: formData.specs!.price_min,
               price_max: formData.specs!.price_max,
               frontage: formData.specs!.frontage,
-              photos: formData.photos!,
+              photos: {
+                front: formData.photos!.front,
+                general: formData.photos!.general || [],
+                detail: formData.photos!.detail || [],
+              },
               roof_status: formData.specs?.roof_status,
               legal_status: formData.legal?.legal_status,
               notes: formData.legal?.notes,

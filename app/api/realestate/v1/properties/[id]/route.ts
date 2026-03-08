@@ -3,13 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 const EXTERNAL_BASE = "https://product.annk.info/api/realestate/v1";
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
-  const res = await fetch(`${EXTERNAL_BASE}/properties/${params.id}`, {
+export async function GET(_req: NextRequest, ctx: RouteParams) {
+  const { id } = await ctx.params;
+
+  const res = await fetch(`${EXTERNAL_BASE}/properties/${id}`, {
     cache: "no-store",
   });
 
@@ -23,10 +25,11 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   });
 }
 
-export async function PATCH(req: NextRequest, { params }: RouteParams) {
+export async function PATCH(req: NextRequest, ctx: RouteParams) {
+  const { id } = await ctx.params;
   const body = await req.text();
 
-  const res = await fetch(`${EXTERNAL_BASE}/properties/${params.id}`, {
+  const res = await fetch(`${EXTERNAL_BASE}/properties/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",

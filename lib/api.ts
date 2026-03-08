@@ -45,6 +45,13 @@ export interface ApiDetailResponse {
   data: ApiProperty;
 }
 
+export interface ImageKitAuthResponse {
+  token: string;
+  expire: number;
+  signature: string;
+  publicKey: string;
+}
+
 export async function fetchPipelines(): Promise<ApiProperty[]> {
   const res = await fetch(`${API_BASE}/properties`, {
     cache: "no-store",
@@ -70,4 +77,18 @@ export async function fetchPipelineById(id: string): Promise<ApiProperty> {
   const json = (await res.json()) as ApiDetailResponse;
   return json.data;
 }
+
+export async function fetchImageKitAuth(): Promise<ImageKitAuthResponse> {
+  const res = await fetch(`${API_BASE}/imagekit/auth`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ImageKit auth: ${res.status}`);
+  }
+
+  const json = (await res.json()) as ImageKitAuthResponse;
+  return json;
+}
+
 

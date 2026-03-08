@@ -16,7 +16,7 @@ interface ReviewData {
   price_min: number;
   price_max: number;
   frontage: number;
-  photos: { front: Blob; general?: Blob; detail?: Blob };
+  photos: { front: Blob; general?: Blob[]; detail?: Blob[] };
   roof_status?: string;
   legal_status?: string;
   notes?: string;
@@ -37,8 +37,8 @@ export function StepReview({
 }: StepReviewProps) {
   const [photoCount] = useState(() => {
     let count = 1;
-    if (data.photos.general) count++;
-    if (data.photos.detail) count++;
+    if (data.photos.general) count += data.photos.general.length;
+    if (data.photos.detail) count += data.photos.detail.length;
     return count;
   });
 
@@ -122,14 +122,14 @@ export function StepReview({
               {photoCount} photo(s) captured
             </p>
           </div>
-          {data.photos.general && (
+          {data.photos.general && data.photos.general.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              ��� General View included
+              ✓ {data.photos.general.length} general photo(s) included
             </p>
           )}
-          {data.photos.detail && (
+          {data.photos.detail && data.photos.detail.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              ✓ Detail View included
+              ✓ {data.photos.detail.length} detail photo(s) included
             </p>
           )}
         </ReviewSection>

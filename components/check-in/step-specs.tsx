@@ -66,9 +66,9 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
   };
 
   const handleNext = () => {
-    if (validateForm()) {
+    // if (validateForm()) {
       onNext(data);
-    }
+    // }
   };
 
   const handleNumberChange = (field: keyof PropertySpecs, value: string) => {
@@ -99,7 +99,7 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label htmlFor="area" className="text-sm font-medium">
-              Area (m²) *
+              Area (m²)
             </Label>
             <Input
               id="area"
@@ -122,7 +122,7 @@ export function StepSpecs({ onNext, initialData }: StepSpecsProps) {
 
           <div>
             <Label htmlFor="frontage" className="text-sm font-medium">
-              Frontage (m) *
+              Frontage (m)
             </Label>
             <Input
               id="frontage"

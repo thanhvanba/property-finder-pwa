@@ -23,9 +23,41 @@ export interface Property {
   frontage: number;
 
   photos: {
-    front: Blob | string;
-    general?: Blob | string;
-    detail?: Blob | string;
+    front:
+      | Blob
+      | string
+      | {
+          fileId: string;
+          url: string;
+          thumbnailUrl?: string;
+          width?: number;
+          height?: number;
+        };
+    // general & detail là mảng ảnh (Blob, URL string, hoặc metadata từ server)
+    general?:
+      | Array<
+          | Blob
+          | string
+          | {
+              fileId: string;
+              url: string;
+              thumbnailUrl?: string;
+              width?: number;
+              height?: number;
+            }
+        >;
+    detail?:
+      | Array<
+          | Blob
+          | string
+          | {
+              fileId: string;
+              url: string;
+              thumbnailUrl?: string;
+              width?: number;
+              height?: number;
+            }
+        >;
   };
 
   roof_status?: "yes" | "partial" | "no" | "unknown";
@@ -111,6 +143,9 @@ export const dbService = {
   async updateProperty(id: string, updates: Partial<Property>): Promise<void> {
     await db.properties.update(id, {
       ...updates,
+      // Bất cứ khi nào property được chỉnh sửa local,
+      // cần sync lại với server.
+      sync_status: "pending",
       updated_at: Date.now(),
     });
   },
